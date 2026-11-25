@@ -1,0 +1,46 @@
+name: Acceptance CI
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Acceptance checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Verify checkout identity
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          actual_head="$(git rev-parse HEAD)"
+          printf 'Tested PR head %s\n' "$actual_head"
+          test "$actual_head" = "$EXPECTED_HEAD"
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Formatting
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            printf '%s\n' "$unformatted"
+            exit 1
+          fi
+      - name: Vet
+        run: go vet ./...
+      - name: Staticcheck
+        run: go run honnef.co/go/tools/cmd/staticcheck@2026.2.2 ./...
+      - name: Race tests
+        run: mkdir -p /tmp/amtest && env -u TMUX TMUX_TMPDIR=/tmp/amtest go test -race ./...
+      - name: Build
+        run: go build ./...

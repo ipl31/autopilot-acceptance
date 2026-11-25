@@ -1,0 +1,6 @@
+language: "en-US"
+reviews:
+  profile: "assertive"
+  path_instructions:
+    - path: "**/*.go"
+      instructions: "Check closed interval semantics, integer boundaries, and regression coverage against PRODUCT.md."
